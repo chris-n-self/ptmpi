@@ -339,4 +339,4 @@ class PtMPI:
                 mpi_process_down_pointer = _TminusOne_down_pointer
                 # print(str(process_rank_)+': points '+str(down_pointer)+'<- [->'+str(up_pointer)+']')
 
-            return _pt_switch_decision
+        return None
