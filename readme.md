@@ -66,5 +66,5 @@ if __name__ == '__main__':
 This is then run in terminal with the command:
 
 ```bash
-mpiexec -n 16 python main.py
+$ mpiexec -n 16 python main.py
 ```
