@@ -1,5 +1,5 @@
 # ptmpi
-A python class that coordinates an MPI implementation of the parallel tempering algorithm
+A python class that coordinates an MPI implementation of parallel tempering
 
 ## Usage
 
@@ -21,7 +21,7 @@ from mpi4py import MPI
 import ptmpi
 from ptmpi import PtMPI
 
-include (other packages)...
+import (other packages)...
 
 if __name__ == '__main__':
 	
@@ -30,7 +30,7 @@ if __name__ == '__main__':
     rank = comm.Get_rank()
 
     ...
-	set model parameters and initialise this replica
+	specify model parameters, initialise this replica
 	...
 
 	# define some set of temperatures
@@ -48,7 +48,7 @@ if __name__ == '__main__':
     	curr_temp = temps[ pt_mpi_obj.get_current_temp_index() ]
 
     	...
-    	evolve the replica e.g. under metropolis, output or store data, etc.
+    	evolve the replica e.g. under metropolis, output/store data, etc.
     	...
 
     	# gather the data needed to decide the parallel tempering swap
