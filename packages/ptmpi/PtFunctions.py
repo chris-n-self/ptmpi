@@ -9,7 +9,7 @@ import numpy as np
 # if running in parallel need to pass this function the log-partition functions
 # rather than the sector obj
 def decide_pt_switch( F_11, F_22, F_12, F_21 ):
-    prob_switch = min( 1, np.exp( (F_12 + F_21 - F_11 - F_22) )
+    prob_switch = min( 1, np.exp( (F_12 + F_21 - F_11 - F_22) ) )
     return ( np.random.random()<prob_switch )
 
 # function that doubles the density in a beta set within a given range of beta
