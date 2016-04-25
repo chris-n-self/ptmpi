@@ -5,11 +5,13 @@ A python class that coordinates an MPI implementation of the parallel tempering 
 
 [Parallel tempering](https://en.wikipedia.org/wiki/Parallel_tempering) is a monte-carlo method used to obtain equilibrium statistics for a physical system over a range of temperatures. When the energy landscape of the system is complex it can hugely speed up the convergence of ensemble averages, especially at low temperatures. It works by simulating *N* copies of the system (replicas) evolving independently at different temperatures [*T1*, *T2*, *T3*, ... ]. Periodically replicas at different temperatures are exchanged with some probability.
 
-This python class supports a fully parallelised implementation of parallel tempering using mpi4py (message passing interface for python). Each replica runs as a separate parallel process and they communicate via the MPI methods. To minimise message passing the replicas stay in place and the temperatures associated with each replica are permuted over the processes. It is this permuting of temperatures that ptmpi handles.
+This python class supports a fully parallelised implementation of parallel tempering using mpi4py (message passing interface for python). Each replica runs as a separate parallel process and they communicate via the MPI methods. To minimise message passing the replicas stay in place and the temperatures are permuted over the processes. It is this permuting of temperatures that ptmpi handles.
 
 The ptmpi class is independent of the system being simulated, or any of the details of the simulation. It can be considered a black box that tells the process what its current temperature is.
 
-Example code (main.py):
+### Example code 
+
+Python script that uses ptmpi (main.py):
 
 ```python
 # import mpi4py package
@@ -66,5 +68,3 @@ This is then run in terminal with the command:
 ```bash
 mpiexec -n 16 python main.py
 ```
-
-## Details
