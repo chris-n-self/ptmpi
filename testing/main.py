@@ -160,7 +160,7 @@ if __name__ == '__main__':
                         # parallel tempering swap step
                         curr_beta_index = mpi_pi_handler.get_current_temp_index()
                         alt_beta_index = mpi_pi_handler.get_alternative_temp_index()
-                        success_flag = mpi_pi_handler.pt_step( kh_sys.get_log_partition_function( betas[curr_beta_index] ), kh_sys.get_log_partition_function( betas[alt_beta_index] ) )
+                        success_flag = mpi_pi_handler.pt_step( 1., kh_sys.get_log_partition_function( betas[curr_beta_index] ), kh_sys.get_log_partition_function( betas[alt_beta_index] ) )
                         if not success_flag is None:
                             out.write_pair( 'pt_swap_success', success_flag )
 

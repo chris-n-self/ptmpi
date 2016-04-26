@@ -1,6 +1,14 @@
 # ptmpi
 A python class that coordinates an MPI implementation of parallel tempering
 
+<!---
+## Installation
+
+Links: 
+MPICH: http://mpitutorial.com/tutorials/installing-mpich2/
+mpi4py: http://pythonhosted.org/mpi4py/
+-->
+
 ## Usage
 
 [Parallel tempering](https://en.wikipedia.org/wiki/Parallel_tempering) is a monte-carlo method used to obtain equilibrium statistics for a physical system over a range of temperatures. When the energy landscape of the system is complex it can hugely speed up the convergence of ensemble averages, especially at low temperatures. It works by simulating *N* copies of the system (replicas) evolving independently at different temperatures [*T1*, *T2*, *T3*, ... ]. Periodically replicas at different temperatures are exchanged with some probability.

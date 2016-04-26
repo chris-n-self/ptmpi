@@ -126,7 +126,7 @@ class PtMPI:
         else:
             return 0
 
-    def pt_step( self, free_energy_curr_temp_, free_energy_alt_temp_ ):
+    def pt_step( self, energy_, curr_temp_, alt_temp_ ):
         """ """
         # sync prcesses if needed
         self.pt_sync()
@@ -264,7 +264,7 @@ class PtMPI:
                 self.mpi_sync_step_pointer = self.mpi_process_up_pointer
                 self.mpi_sync_pointer_direction = 1
 
-    def pt_swap( self, energy_curr_temp_, energy_alt_temp_ ):
+    def pt_swap( self, energy_, curr_temp_, alt_temp_ ):
         """
         """
         _curr_pt_subset = self.pt_subsets.pop()
@@ -285,8 +285,8 @@ class PtMPI:
             _TplusOne_down_pointer = int(incoming_data[3])
 
             # get this processes log-partition functions for pt comparisons
-            _F_11 = free_energy_curr_temp_
-            _F_12 = free_energy_alt_temp_
+            _F_11 = energy_*curr_temp_
+            _F_12 = energy_*alt_temp_
 
             # decide whether to make pt switch
             _pt_switch_decision = int( PtFunctions.decide_pt_switch( _F_11, _F_22, _F_12, _F_21 ) )
@@ -314,8 +314,8 @@ class PtMPI:
             # non-controller chain at T+1 sends data to T and waits for decision
             
             # pack data for sending to T-1, this is [F_22, F_21, self.mpi_process_up_pointer, self.mpi_process_down_pointer]
-            _F_22 = free_energy_curr_temp_
-            _F_21 = free_energy_alt_temp_
+            _F_22 = energy_*curr_temp_
+            _F_21 = energy_*alt_temp_
             sending_data = np.array([ _F_22, _F_21, np.float64(self.mpi_process_up_pointer), np.float64(self.mpi_process_down_pointer) ])
             # print(str(self.mpi_process_rank)+': at temp '+str(self.beta_index)+' sending info to '+str(self.mpi_process_down_pointer)+' at temp '+str(self.beta_index-1))
             self.mpi_comm_world.Send( sending_data, dest=self.mpi_process_down_pointer, tag=10 )
