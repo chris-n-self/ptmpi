@@ -96,15 +96,18 @@ class PtMPI:
         identify proper pairs in the PT rounds
         We use -1 to indicate that the process is at an end of the chain
         """
-        self.mpi_process_up_pointer = self.mpi_process_rank+1
+        self.mpi_process_up_pointer = int(self.mpi_process_rank)+1
         if ( self.mpi_process_up_pointer == int(self.mpi_comm_world.Get_size()) ):
             self.mpi_process_up_pointer = -1
-        self.mpi_process_down_pointer = self.mpi_process_rank-1
+        self.mpi_process_down_pointer = int(self.mpi_process_rank)-1
+
+        # print str(self.mpi_process_rank),': at temp ',str(self.beta_index), ' initial self.mpi_process_up_pointer ', self.mpi_process_up_pointer
+        # print str(self.mpi_process_rank),': at temp ',str(self.beta_index), ' initial self.mpi_process_down_pointer ', self.mpi_process_down_pointer
 
         """
         INITIALISE SYNC STEP POINTERS
         """
-        if (self.beta_index%2 == self.pt_subsets[0]):
+        if (self.beta_index%2 == self.pt_subsets[-1]):
             # points down to the top of the pair below
             self.mpi_sync_step_pointer = self.mpi_process_down_pointer
             self.mpi_sync_pointer_direction = 0
@@ -119,9 +122,9 @@ class PtMPI:
 
     def get_alternative_temp_index( self ):
         """ """
-        if ( (self.beta_index%2 == self.pt_subsets[-1]) and not (self.mpi_process_up_pointer == -1) ):
+        if (self.beta_index%2 == self.pt_subsets[-1]) and (not (self.mpi_process_up_pointer == -1)):
             return self.beta_index + 1
-        elif ( not ( self.beta_index%2 == self.pt_subsets[-1] ) and not (self.mpi_process_down_pointer == -1) ):
+        elif (not ( self.beta_index%2 == self.pt_subsets[-1] )) and (not (self.mpi_process_down_pointer == -1)):
             return self.beta_index - 1
         else:
             return 0
@@ -132,15 +135,20 @@ class PtMPI:
         self.pt_sync()
 
         # carry out swaps and return success flag
-        return self.pt_swap( free_energy_curr_temp_, free_energy_alt_temp_ )
+        return self.pt_swap( energy_, curr_temp_, alt_temp_ )
 
     def pt_sync( self ):
         """
         """
-        if not ( self.prev_pt_subset == self.pt_subsets[-1] ) and not ( self.prev_pt_subset == -1 ):
+        #print str(self.mpi_process_rank),': at temp ',str(self.beta_index), ' self.prev_pt_subset ', self.prev_pt_subset
+        #print str(self.mpi_process_rank),': at temp ',str(self.beta_index), ' self.pt_subsets[-1] ', self.pt_subsets[-1]
+        if (not ( self.prev_pt_subset == self.pt_subsets[-1] )) and (not ( self.prev_pt_subset == -1 )):
+            #print str(self.mpi_process_rank),': at temp ',str(self.beta_index), ' syncing'
+            #print(str(self.mpi_process_rank)+': points '+str(self.mpi_process_down_pointer)+'<- [->'+str(self.mpi_process_up_pointer)+']')
 
             # handle the processes that began the last pt subset at the bottom of the pair, i.e. that are syncing
             # with the pair below
+            #print str(self.mpi_process_rank),': at temp ',str(self.beta_index), ' self.mpi_sync_pointer_direction ', self.mpi_sync_pointer_direction
             if self.mpi_sync_pointer_direction == 0:
         
                 # identify if during the last pt subset this process instead ended up on the
@@ -149,10 +157,12 @@ class PtMPI:
         
                 # if the sync step pointer is -1 this indicates the process is at the lowest temperature and has no
                 # pair to sync with below, so nothing needs to be done
+                #print str(self.mpi_process_rank),': at temp ',str(self.beta_index), ' self.mpi_sync_step_pointer ', self.mpi_sync_step_pointer
+                #print str(self.mpi_process_rank),': at temp ',str(self.beta_index), ' ( self.mpi_sync_step_pointer == -1 ) ', ( self.mpi_sync_step_pointer == -1 )
                 if not ( self.mpi_sync_step_pointer == -1 ):
             
                     # wait for a signal from the process at the end of the sync pointer
-                    # print(str(self.mpi_process_rank)+': at temp '+str(self.beta_index)+' waiting for info from '+str(self.mpi_sync_step_pointer))
+                    #print(str(self.mpi_process_rank)+': at temp '+str(self.beta_index)+' waiting for info from '+str(self.mpi_sync_step_pointer))
                     incoming_data = np.empty(1, dtype=np.int64)
                     self.mpi_comm_world.Recv( incoming_data, source=self.mpi_sync_step_pointer, tag=14 )
             
@@ -162,7 +172,7 @@ class PtMPI:
             
                     # send a message back encoding whether or not this process is still at the bottom
                     # of the pair, if it is not send the process rank of the process that now is
-                    # print(str(self.mpi_process_rank)+': at temp '+str(self.beta_index)+' sending info to '+str(self.mpi_sync_step_pointer))
+                    #print(str(self.mpi_process_rank)+': at temp '+str(self.beta_index)+' sending info to '+str(self.mpi_sync_step_pointer))
                     if _process_has_swapped_during_last_subset:
                         outgoing_data = np.array([ self.mpi_process_down_pointer ])
                     else:
@@ -177,7 +187,7 @@ class PtMPI:
         
                     # wait for a message from the process partner telling this process what
                     # its up-pointer should be pointing to
-                    # print(str(self.mpi_process_rank)+': at temp '+str(self.beta_index)+' waiting for info from '+str(self.mpi_process_down_pointer))
+                    #print(str(self.mpi_process_rank)+': at temp '+str(self.beta_index)+' waiting for info from partner '+str(self.mpi_process_down_pointer))
                     incoming_data = np.empty(1, dtype=np.int64)
                     self.mpi_comm_world.Recv( incoming_data, source=self.mpi_process_down_pointer, tag=18 )
                     if incoming_data[0]!=-1:
@@ -185,7 +195,7 @@ class PtMPI:
         
                     # send a message to the processes partner in the pair containing what its
                     # down-pointer should be pointing to
-                    # print(str(self.mpi_process_rank)+': at temp '+str(self.beta_index)+' sending info to '+str(self.mpi_process_down_pointer))
+                    #print(str(self.mpi_process_rank)+': at temp '+str(self.beta_index)+' sending info to partner '+str(self.mpi_process_down_pointer))
                     outgoing_data = np.array([_new_top_process_subset_below])
                     self.mpi_comm_world.Send( outgoing_data, dest=self.mpi_process_down_pointer, tag=20 )
         
@@ -208,7 +218,7 @@ class PtMPI:
         
                     # send a message to the process at the other end of the sync pointer telling it
                     # whether this process is still on the top of the pair or not
-                    # print(str(self.mpi_process_rank)+': at temp '+str(self.beta_index)+' sending info to '+str(self.mpi_sync_step_pointer))
+                    #print(str(self.mpi_process_rank)+': at temp '+str(self.beta_index)+' sending info to '+str(self.mpi_sync_step_pointer))
                     if _process_has_swapped_during_last_subset:
                         outgoing_data = np.array([ self.mpi_process_up_pointer ])
                     else:
@@ -217,7 +227,7 @@ class PtMPI:
             
                     # wait for a message back telling us whether the process we sent the message to
                     # is still at the bottom of the pair or not
-                    # print(str(self.mpi_process_rank)+': at temp '+str(self.beta_index)+' waiting for info from '+str(self.mpi_sync_step_pointer))
+                    #print(str(self.mpi_process_rank)+': at temp '+str(self.beta_index)+' waiting for info from '+str(self.mpi_sync_step_pointer))
                     incoming_data = np.empty(1, dtype=np.int64)
                     self.mpi_comm_world.Recv( incoming_data, source=self.mpi_sync_step_pointer, tag=16 )
             
@@ -233,13 +243,13 @@ class PtMPI:
         
                     # send a message to the processes partner in the pair containing what its
                     # up-pointer should be pointing to
-                    # print(str(self.mpi_process_rank)+': at temp '+str(self.beta_index)+' sending info to '+str(self.mpi_process_down_pointer))
+                    #print(str(self.mpi_process_rank)+': at temp '+str(self.beta_index)+' sending info to partner '+str(self.mpi_process_down_pointer))
                     outgoing_data = np.array([_new_bottom_process_subset_above])
                     self.mpi_comm_world.Send( outgoing_data, dest=self.mpi_process_up_pointer, tag=18 )
         
                     # wait for a message from the process partner telling this process what
                     # its down-pointer should be pointing to
-                    # print(str(self.mpi_process_rank)+': at temp '+str(self.beta_index)+' waiting for info from '+str(self.mpi_process_down_pointer))
+                    #print(str(self.mpi_process_rank)+': at temp '+str(self.beta_index)+' waiting for info from partner '+str(self.mpi_process_down_pointer))
                     incoming_data = np.empty(1, dtype=np.int64)
                     self.mpi_comm_world.Recv( incoming_data, source=self.mpi_process_up_pointer, tag=20 )
                     if not ( incoming_data[0] == -1 ):
@@ -252,13 +262,13 @@ class PtMPI:
         
             # set sync pointers for next sync round
             if ( self.beta_index%2 == self.pt_subsets[-1] ):
-                # print(str(self.mpi_process_rank)+': points '+str(self.mpi_process_down_pointer)+'<- [->'+str(self.mpi_process_up_pointer)+']')
+                #print(str(self.mpi_process_rank)+': points '+str(self.mpi_process_down_pointer)+'<- [->'+str(self.mpi_process_up_pointer)+']')
                 
                 # points down to the top of the pair below
                 self.mpi_sync_step_pointer = self.mpi_process_down_pointer
                 self.mpi_sync_pointer_direction = 0
             else:
-                # print(str(self.mpi_process_rank)+': points ['+str(self.mpi_process_down_pointer)+'<-] ->'+str(self.mpi_process_up_pointer))
+                #print(str(self.mpi_process_rank)+': points ['+str(self.mpi_process_down_pointer)+'<-] ->'+str(self.mpi_process_up_pointer))
 
                 # points up to the bottom of the pair above
                 self.mpi_sync_step_pointer = self.mpi_process_up_pointer
@@ -270,13 +280,22 @@ class PtMPI:
         _curr_pt_subset = self.pt_subsets.pop()
         self.prev_pt_subset = _curr_pt_subset
 
-        if ( (self.beta_index%2==_curr_pt_subset) and not (self.mpi_process_up_pointer == -1) ):
+        #print str(self.mpi_process_rank),': at temp ',str(self.beta_index), ' self.beta_index%2 ', self.beta_index%2
+        #print str(self.mpi_process_rank),': at temp ',str(self.beta_index), ' _curr_pt_subset ', _curr_pt_subset
+        #print str(self.mpi_process_rank),': at temp ',str(self.beta_index), ' self.mpi_process_up_pointer ', self.mpi_process_up_pointer
+        #print str(self.mpi_process_rank),': at temp ',str(self.beta_index), ' self.mpi_process_down_pointer ', self.mpi_process_down_pointer
+        if (self.beta_index%2==_curr_pt_subset) and (not (self.mpi_process_up_pointer == -1)):
+            #print str(self.mpi_process_rank),': at temp ',str(self.beta_index), ' swapping'
                         
             # controller chain at T recieves data from T+1 and makes a decision
             incoming_data = np.empty(4, dtype=np.float64)
-            # print(str(self.mpi_process_rank)+': at temp '+str(self.beta_index)+' waiting for info from '+str(self.mpi_process_up_pointer)+' at temp '+str(self.beta_index+1))
-            self.mpi_comm_world.Recv( incoming_data, source=self.mpi_process_up_pointer, tag=10 )
-            # print(str(self.mpi_process_rank)+': at temp '+str(self.beta_index)+' recieved info from '+str(self.mpi_process_up_pointer))
+            #print(str(self.mpi_process_rank)+': at temp '+str(self.beta_index)+' waiting for info from '+str(self.mpi_process_up_pointer)+' at temp '+str(self.beta_index+1))
+            try:
+                self.mpi_comm_world.Recv( incoming_data, source=self.mpi_process_up_pointer, tag=10 )
+            except OverflowError:
+                print str(self.mpi_process_rank),': at temp ',str(self.beta_index), ' incoming_data ', incoming_data
+                print str(self.mpi_process_rank),': at temp ',str(self.beta_index), ' self.mpi_process_up_pointer ', self.mpi_process_up_pointer
+            #print(str(self.mpi_process_rank)+': at temp '+str(self.beta_index)+' recieved info from '+str(self.mpi_process_up_pointer))
 
             # unpack incoming data
             _F_22 = incoming_data[0]
@@ -293,12 +312,12 @@ class PtMPI:
 
             # send decision to paired process
             sending_data = np.array([ _pt_switch_decision, self.mpi_process_up_pointer, self.mpi_process_down_pointer ])
-            # print(str(self.mpi_process_rank)+': at temp '+str(self.beta_index)+' sending decision to '+str(self.mpi_process_up_pointer)+' at temp '+str(self.beta_index+1))
+            #print(str(self.mpi_process_rank)+': at temp '+str(self.beta_index)+' sending decision to '+str(self.mpi_process_up_pointer)+' at temp '+str(self.beta_index+1))
             self.mpi_comm_world.Send( sending_data, dest=self.mpi_process_up_pointer, tag=12 )
 
             # if swap was accepted handle change
             if ( _pt_switch_decision == 1 ):
-                # print(str(self.mpi_process_rank)+': changing temp from self.beta_index='+str(self.beta_index)+' to self.beta_index='+str(self.beta_index+1))
+                #print(str(self.mpi_process_rank)+': changing temp from self.beta_index='+str(self.beta_index)+' to self.beta_index='+str(self.beta_index+1))
                 
                 # increase temperature index from T->T+1
                 self.beta_index += 1
@@ -306,25 +325,31 @@ class PtMPI:
                 # update pointers
                 self.mpi_process_down_pointer = self.mpi_process_up_pointer
                 self.mpi_process_up_pointer = _TplusOne_up_pointer
-                # print(str(self.mpi_process_rank)+': points ['+str(self.mpi_process_down_pointer)+'<-] ->'+str(self.mpi_process_up_pointer))
+                #print(str(self.mpi_process_rank)+': points ['+str(self.mpi_process_down_pointer)+'<-] ->'+str(self.mpi_process_up_pointer))
 
             return _pt_switch_decision
 
-        elif ( not ( self.beta_index%2 == _curr_pt_subset ) and not ( self.mpi_process_down_pointer == -1 ) ):
+        elif (not ( self.beta_index%2 == _curr_pt_subset )) and (not ( self.mpi_process_down_pointer == -1 )):
+            #print str(self.mpi_process_rank),': at temp ',str(self.beta_index), ' swapping'
             # non-controller chain at T+1 sends data to T and waits for decision
             
             # pack data for sending to T-1, this is [F_22, F_21, self.mpi_process_up_pointer, self.mpi_process_down_pointer]
             _F_22 = energy_*curr_temp_
             _F_21 = energy_*alt_temp_
             sending_data = np.array([ _F_22, _F_21, np.float64(self.mpi_process_up_pointer), np.float64(self.mpi_process_down_pointer) ])
-            # print(str(self.mpi_process_rank)+': at temp '+str(self.beta_index)+' sending info to '+str(self.mpi_process_down_pointer)+' at temp '+str(self.beta_index-1))
-            self.mpi_comm_world.Send( sending_data, dest=self.mpi_process_down_pointer, tag=10 )
+            #print(str(self.mpi_process_rank)+': at temp '+str(self.beta_index)+' sending info to '+str(self.mpi_process_down_pointer)+' at temp '+str(self.beta_index-1))
+            try:
+                self.mpi_comm_world.Send( sending_data, dest=self.mpi_process_down_pointer, tag=10 )
+            except OverflowError:
+                print str(self.mpi_process_rank),': at temp ',str(self.beta_index), ' sending_data ', sending_data
+                print str(self.mpi_process_rank),': at temp ',str(self.beta_index), ' self.mpi_process_down_pointer ', self.mpi_process_down_pointer
+
 
             # wait for decision data
             decision_data = np.empty(3, dtype=np.int64)
-            # print(str(self.mpi_process_rank)+': at temp '+str(self.beta_index)+' waiting for decision from '+str(self.mpi_process_down_pointer)+' at temp '+str(self.beta_index-1))
+            #print(str(self.mpi_process_rank)+': at temp '+str(self.beta_index)+' waiting for decision from '+str(self.mpi_process_down_pointer)+' at temp '+str(self.beta_index-1))
             self.mpi_comm_world.Recv( decision_data, source=self.mpi_process_down_pointer, tag=12 )
-            # print(str(self.mpi_process_rank)+': at temp '+str(self.beta_index)+' recieved decision from '+str(self.mpi_process_down_pointer))
+            #print(str(self.mpi_process_rank)+': at temp '+str(self.beta_index)+' recieved decision from '+str(self.mpi_process_down_pointer))
                 
             # unpack decision data
             _pt_switch_decision = decision_data[0]
@@ -333,7 +358,7 @@ class PtMPI:
                 
             # if swap was accepted handle change
             if ( _pt_switch_decision==1 ):
-                # print(str(self.mpi_process_rank)+': changing temp from self.beta_index='+str(self.beta_index)+' to self.beta_index='+str(self.beta_index-1))
+                #print(str(self.mpi_process_rank)+': changing temp from self.beta_index='+str(self.beta_index)+' to self.beta_index='+str(self.beta_index-1))
                 
                 # decrease temperature index from T+1->T
                 self.beta_index -= 1
@@ -341,6 +366,6 @@ class PtMPI:
                 # update pointers
                 self.mpi_process_up_pointer = self.mpi_process_down_pointer
                 self.mpi_process_down_pointer = _TminusOne_down_pointer
-                # print(str(self.mpi_process_rank)+': points '+str(self.mpi_process_down_pointer)+'<- [->'+str(self.mpi_process_up_pointer)+']')
+                #print(str(self.mpi_process_rank)+': points '+str(self.mpi_process_down_pointer)+'<- [->'+str(self.mpi_process_up_pointer)+']')
 
         return None
