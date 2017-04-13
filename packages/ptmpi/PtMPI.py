@@ -80,10 +80,11 @@ class PtMPI:
         process 0 pre-generates the list of which random subset the pt exchanges occur
         within during each round, these are then broadcasted to all the other processes.
         """
+        print self.mpi_process_rank,' : trying initial bcast'
         if ( self.mpi_process_rank == 0 ):
-            self.pt_subsets = np.random.randint(2,size=length_of_program_)
+            self.pt_subsets = np.random.randint(2,size=length_of_program_,dtype=np.int64)
         else:
-            self.pt_subsets = np.empty(length_of_program_, dtype=np.int64)
+            self.pt_subsets = np.empty(length_of_program_,dtype=np.int64)
         self.mpi_comm_world.Bcast(self.pt_subsets, root=0)
         self.prev_pt_subset = -1
         # convert pt_subsets to regular array
