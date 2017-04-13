@@ -140,7 +140,7 @@ class PtMPI:
     def pt_sync( self ):
         """
         """
-        print self.mpi_process_rank,' : at sync'
+        #print self.mpi_process_rank,' : at sync'
         #print str(self.mpi_process_rank),': at temp ',str(self.beta_index), ' self.prev_pt_subset ', self.prev_pt_subset
         #print str(self.mpi_process_rank),': at temp ',str(self.beta_index), ' self.pt_subsets[-1] ', self.pt_subsets[-1]
         if (not ( self.prev_pt_subset == self.pt_subsets[-1] )) and (not ( self.prev_pt_subset == -1 )):
@@ -278,7 +278,7 @@ class PtMPI:
     def pt_swap( self, energy_, curr_temp_, alt_temp_ ):
         """
         """
-        print self.mpi_process_rank,' : at swap'
+        #print self.mpi_process_rank,' : at swap'
         _curr_pt_subset = self.pt_subsets.pop()
         self.prev_pt_subset = _curr_pt_subset
 
