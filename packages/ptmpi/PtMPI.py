@@ -82,9 +82,9 @@ class PtMPI:
         """
         print self.mpi_process_rank,' : trying initial bcast'
         if ( self.mpi_process_rank == 0 ):
-            self.pt_subsets = np.random.randint(2,size=length_of_program_,dtype=np.int64)
+            self.pt_subsets = np.random.randint(2,size=length_of_program_)
         else:
-            self.pt_subsets = np.empty(length_of_program_,dtype=np.int64)
+            self.pt_subsets = np.empty(length_of_program_,dtype='i')
         self.mpi_comm_world.Bcast(self.pt_subsets, root=0)
         self.prev_pt_subset = -1
         # convert pt_subsets to regular array
