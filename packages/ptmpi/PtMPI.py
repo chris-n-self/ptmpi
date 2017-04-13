@@ -80,7 +80,6 @@ class PtMPI:
         process 0 pre-generates the list of which random subset the pt exchanges occur
         within during each round, these are then broadcasted to all the other processes.
         """
-        print self.mpi_process_rank,' : at initial bcast'
         if ( self.mpi_process_rank == 0 ):
             self.pt_subsets = np.random.randint(2,size=length_of_program_)
         else:
@@ -141,6 +140,7 @@ class PtMPI:
     def pt_sync( self ):
         """
         """
+        print self.mpi_process_rank,' : at sync'
         #print str(self.mpi_process_rank),': at temp ',str(self.beta_index), ' self.prev_pt_subset ', self.prev_pt_subset
         #print str(self.mpi_process_rank),': at temp ',str(self.beta_index), ' self.pt_subsets[-1] ', self.pt_subsets[-1]
         if (not ( self.prev_pt_subset == self.pt_subsets[-1] )) and (not ( self.prev_pt_subset == -1 )):
@@ -278,6 +278,7 @@ class PtMPI:
     def pt_swap( self, energy_, curr_temp_, alt_temp_ ):
         """
         """
+        print self.mpi_process_rank,' : at swap'
         _curr_pt_subset = self.pt_subsets.pop()
         self.prev_pt_subset = _curr_pt_subset
 
