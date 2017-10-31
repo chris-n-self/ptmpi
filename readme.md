@@ -13,9 +13,9 @@ mpi4py: http://pythonhosted.org/mpi4py/
 
 [Parallel tempering](https://en.wikipedia.org/wiki/Parallel_tempering) is a monte-carlo method used to obtain equilibrium statistics for a physical system over a range of temperatures. When the energy landscape of the system is complex it can hugely speed up the convergence of ensemble averages, especially at low temperatures. It works by simulating *N* copies of the system (replicas) evolving independently at different temperatures [*T1*, *T2*, *T3*, ... ]. Periodically replicas at different temperatures are exchanged with some probability.
 
-The python class (`ptmpi.PtMPI`) supports a fully parallelised implementation of parallel tempering using mpi4py (message passing interface for python). Each replica runs as a separate parallel process and they communicate via the MPI methods. To minimise message passing the replicas stay in place and the temperatures are permuted over the processes. It is this permuting of temperatures that ptmpi handles.
+This python class (`ptmpi.PtMPI`) supports a fully parallelised implementation of parallel tempering using mpi4py (message passing interface for python). Each replica runs as a separate parallel process and they communicate via an mpi4py object. To minimise message passing the replicas stay in place and the temperatures are exchanged between the processes. It is this exchange of temperatures that ptmpi handles.
 
-The class is independent of the system being simulated or any of the details of the simulation, including what the temperatures [*T1*, *T2*, *T3*, ... ] are. It is used as a black box that tells the process what its position temperature in the list of temperatures is. 
+The class is independent of the system being simulated or any of the details of the simulation, including what the temperatures [*T1*, *T2*, *T3*, ... ] are. It behaves as a black box to tell the process what its position temperature in the list of temperatures is. 
 
 ### Example code 
 
@@ -38,16 +38,16 @@ if __name__ == '__main__':
     rank = comm.Get_rank()
 
     # ...
-	# specify model parameters, initialise this replica
-	# ...
+    # specify model parameters, initialise this replica
+    # ...
 
-	# define some set of temperatures
-	temps = [ ... ]
+    # define some set of temperatures
+    temps = [ ... ]
 
-	# decide the total number of pt-swaps that will be run
-	length_of_program = ...
+    # decide the total number of pt-swaps that will be run
+    length_of_program = ...
 
-	# initialise ptmpi object
+    # initialise ptmpi object
     pt_mpi_obj = PtMPI.PtMPI( comm,rank,length_of_program )
 
     for time_step in range(length_of_program):
