@@ -313,7 +313,10 @@ class PtMPI:
             _F_12 = energy_*alt_temp_
 
             # decide whether to make pt switch
-            _pt_switch_decision = int( PtFunctions.decide_pt_switch( _F_11, _F_22, _F_12, _F_21 ) )
+            if self.disable_swaps:
+                _pt_switch_decision = 0
+            else:
+                _pt_switch_decision = int( PtFunctions.decide_pt_switch( _F_11, _F_22, _F_12, _F_21 ) )
 
             # send decision to paired process
             sending_data = np.array([ _pt_switch_decision, self.mpi_process_up_pointer, self.mpi_process_down_pointer ])
