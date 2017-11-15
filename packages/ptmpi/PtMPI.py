@@ -49,6 +49,8 @@ class PtMPI:
 
     Stored properties:
     ==================
+    self.disable_swaps : set swap prob -> 0 to reject all swaps
+    -----
     self.mpi_comm_world : MPI communication environment
     self.mpi_process_rank : process rank
     self.beta_index : index in the temperature set of this process's current temp
@@ -64,9 +66,10 @@ class PtMPI:
     self.mpi_sync_pointer_direction : information about whether this pointer points up or down
 
     """
-    def __init__( self, mpi_comm_,mpi_rank_, length_of_program_ ):
+    def __init__( self, mpi_comm_,mpi_rank_, length_of_program_, disable_swaps=False ):
         """
         """
+        self.disable_swaps = disable_swaps
 
         # store the self.mpi_comm_world and the process rank
         self.mpi_comm_world = mpi_comm_
