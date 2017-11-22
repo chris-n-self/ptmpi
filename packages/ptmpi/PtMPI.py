@@ -75,6 +75,13 @@ class PtMPI:
         self.mpi_comm_world = mpi_comm_
         self.mpi_process_rank = mpi_rank_
 
+        # initialise all vars
+        self.reset(length_of_program_)
+
+    def reset( self,length_of_program_ ):
+        """
+        set all variables to initial state
+        """
         # store the current temperature of this process as its position in the list of temperatures
         self.beta_index = self.mpi_process_rank
 
