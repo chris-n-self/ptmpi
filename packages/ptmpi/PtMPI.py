@@ -92,16 +92,18 @@ class PtMPI:
         """
         if ( self.mpi_process_rank == 0 ):
             self.pt_subsets = np.random.randint(2,size=length_of_program_)
+            print 'process 0 generated pt_subsets, len : ',len(self.pt_subsets)
             # turn into bool array
             #self.pt_subsets = np.logical_and(self.pt_subsets,self.pt_subsets) 
         else:
             self.pt_subsets = np.empty(length_of_program_,dtype=int)
             #self.pt_subsets = np.empty(length_of_program_,dtype=np.bool)
         self.mpi_comm_world.Bcast([self.pt_subsets,MPI.INT], root=0)
+        print 'process ',self.mpi_process_rank,' has pt_subsets, len : ',len(self.pt_subsets)
         #self.mpi_comm_world.Bcast([self.pt_subsets,MPI.BOOL], root=0)
         self.prev_pt_subset = -1
         # convert pt_subsets to regular array
-        self.pt_subsets = [ rr for rr in self.pt_subsets ]
+        self.pt_subsets = self.pt_subsets.tolist()
         #self.pt_subsets = [ int(rr) for rr in self.pt_subsets ]
 
         """
