@@ -1,10 +1,12 @@
+#
 # 24/04/2016
 # Chris Self
-
+#
 import sys
-import PtFunctions
-import numpy as np
+import json
 from mpi4py import MPI
+import numpy as np
+import PtFunctions
 
 class NoMoreSwaps(Exception):
     pass
@@ -149,7 +151,7 @@ class PtMPI:
                 _state[attr] = getattr(self,attr)
         json.dump(_state,file_handle)
 
-    def load( file_handle ):
+    def load( self,file_handle ):
         """
         update the internal state to values set by json read
         exclude mpi-comm-environment and pt-subsets shared resource as these only really make sense at runtime
@@ -157,7 +159,7 @@ class PtMPI:
         """
         _state = json.load(file_handle)
         if not (_state['mpi_process_rank']==self.mpi_process_rank):
-            print( 'PtMPI load must match the current MPI process ranks to the loaded data', file=sys.stderr )
+            print >> sys.stderr, 'PtMPI load must match the current MPI process ranks to the loaded data'
             raise KeyError
 
         for attr in dir(self):
@@ -165,7 +167,7 @@ class PtMPI:
                 try:
                     setattr(self,attr,_state[attr])
                 except KeyError:
-                    print( 'Aborting PtMPI load, data was missing field: '+attr, file=sys.stderr )
+                    print >> sys.stderr, 'Aborting PtMPI load, data was missing field: '+attr
                     self.reset()
                     return
 
