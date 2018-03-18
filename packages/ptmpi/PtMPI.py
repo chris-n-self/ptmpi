@@ -1,9 +1,13 @@
 # 24/04/2016
 # Chris Self
 
+import sys
 import PtFunctions
 import numpy as np
 from mpi4py import MPI
+
+class NoMoreSwaps(Exception):
+    pass
 
 class PtMPI:
     """
@@ -78,13 +82,7 @@ class PtMPI:
         # initialise all vars
         self.reset(length_of_program_)
 
-    def reset( self,length_of_program_ ):
-        """
-        set all variables to initial state
-        """
-        # store the current temperature of this process as its position in the list of temperatures
-        self.beta_index = self.mpi_process_rank
-
+    def _init_pt_subsets( self,length_of_program_ ):
         """
         BROADCAST PT-SUBSETS LIST
         process 0 pre-generates the list of which random subset the pt exchanges occur
@@ -99,10 +97,18 @@ class PtMPI:
             #self.pt_subsets = np.empty(length_of_program_,dtype=np.bool)
         self.mpi_comm_world.Bcast([self.pt_subsets,MPI.INT], root=0)
         #self.mpi_comm_world.Bcast([self.pt_subsets,MPI.BOOL], root=0)
-        self.prev_pt_subset = -1
         # convert pt_subsets to regular array
         self.pt_subsets = self.pt_subsets.tolist()
-        #self.pt_subsets = [ int(rr) for rr in self.pt_subsets ]
+
+    def reset( self,length_of_program_ ):
+        """
+        set all variables to initial state
+        """
+        # store the current temperature of this process as its position in the list of temperatures
+        self.beta_index = self.mpi_process_rank
+
+        # initialise pt-subsets shared resource
+        self._init_pt_subsets(length_of_program_)
 
         """
         INITIALISE POINTERS TO NEIGHBOURING PROCESSES
@@ -122,6 +128,7 @@ class PtMPI:
         """
         INITIALISE SYNC STEP POINTERS
         """
+        self.prev_pt_subset = -1
         if (self.beta_index%2 == self.pt_subsets[-1]):
             # points down to the top of the pair below
             self.mpi_sync_step_pointer = self.mpi_process_down_pointer
@@ -131,15 +138,51 @@ class PtMPI:
             self.mpi_sync_step_pointer = self.mpi_process_up_pointer
             self.mpi_sync_pointer_direction = 1
 
+    def dump( self,file_handle ):
+        """
+        dump internal state as dict to json 
+        exclude mpi-comm-environment and pt-subsets var as these are specific to instances
+        """
+        _state = {}
+        for attr in dir(self):
+            if not callable(getattr(self, attr)) and not attr.startswith("__") and not (attr=='mpi_comm_world') and not (attr=='pt_subsets'):
+                _state[attr] = getattr(self,attr)
+        json.dump(_state,file_handle)
+
+    def load( file_handle ):
+        """
+        update the internal state to values set by json read
+        exclude mpi-comm-environment and pt-subsets shared resource as these only really make sense at runtime
+        raise an exception if the rank of this running process does not match the MPI rank in the loaded data 
+        """
+        _state = json.load(file_handle)
+        if not (_state['mpi_process_rank']==self.mpi_process_rank):
+            print( 'PtMPI load must match the current MPI process ranks to the loaded data', file=sys.stderr )
+            raise KeyError
+
+        for attr in dir(self):
+            if not callable(getattr(self, attr)) and not attr.startswith("__") and not (attr=='mpi_comm_world') and not (attr=='pt_subsets'):
+                try:
+                    setattr(self,attr,_state[attr])
+                except KeyError:
+                    print( 'Aborting PtMPI load, data was missing field: '+attr, file=sys.stderr )
+                    self.reset()
+                    return
+
     def get_current_temp_index( self ):
         """ """
         return self.beta_index
 
     def get_alternative_temp_index( self ):
         """ """
-        if (self.beta_index%2 == self.pt_subsets[-1]) and (not (self.mpi_process_up_pointer == -1)):
+        try:
+            _next_pt_subset = self.pt_subsets[-1]
+        except IndexError:
+            raise NoMoreSwaps
+
+        if (self.beta_index%2 == _next_pt_subset) and (not (self.mpi_process_up_pointer == -1)):
             return self.beta_index + 1
-        elif (not ( self.beta_index%2 == self.pt_subsets[-1] )) and (not (self.mpi_process_down_pointer == -1)):
+        elif (not ( self.beta_index%2 == _next_pt_subset )) and (not (self.mpi_process_down_pointer == -1)):
             return self.beta_index - 1
         else:
             return 0
@@ -155,10 +198,15 @@ class PtMPI:
     def pt_sync( self ):
         """
         """
+        try:
+            _next_pt_subset = self.pt_subsets[-1]
+        except IndexError:
+            raise NoMoreSwaps
+
         #print self.mpi_process_rank,' : at sync'
         #print str(self.mpi_process_rank),': at temp ',str(self.beta_index), ' self.prev_pt_subset ', self.prev_pt_subset
-        #print str(self.mpi_process_rank),': at temp ',str(self.beta_index), ' self.pt_subsets[-1] ', self.pt_subsets[-1]
-        if (not ( self.prev_pt_subset == self.pt_subsets[-1] )) and (not ( self.prev_pt_subset == -1 )):
+        #print str(self.mpi_process_rank),': at temp ',str(self.beta_index), ' _next_pt_subset ', _next_pt_subset
+        if (not ( self.prev_pt_subset == _next_pt_subset )) and (not ( self.prev_pt_subset == -1 )):
             #print str(self.mpi_process_rank),': at temp ',str(self.beta_index), ' syncing'
             #print(str(self.mpi_process_rank)+': points '+str(self.mpi_process_down_pointer)+'<- [->'+str(self.mpi_process_up_pointer)+']')
 
@@ -277,7 +325,7 @@ class PtMPI:
                         self.mpi_process_up_pointer = _new_bottom_process_subset_above
         
             # set sync pointers for next sync round
-            if ( self.beta_index%2 == self.pt_subsets[-1] ):
+            if ( self.beta_index%2 == _next_pt_subset ):
                 #print(str(self.mpi_process_rank)+': points '+str(self.mpi_process_down_pointer)+'<- [->'+str(self.mpi_process_up_pointer)+']')
                 
                 # points down to the top of the pair below
