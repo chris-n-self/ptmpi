@@ -55,7 +55,7 @@ class PtMPI:
 
     Stored properties:
     ==================
-    self.disable_swaps : set swap prob -> 0 to reject all swaps
+    self.decision_func : function to call to decide swap acceptance, default value PtFunctions.decide_pt_switch
     -----
     self.mpi_comm_world : MPI communication environment
     self.mpi_process_rank : process rank
@@ -72,17 +72,24 @@ class PtMPI:
     self.mpi_sync_pointer_direction : information about whether this pointer points up or down
 
     """
-    def __init__( self, mpi_comm_,mpi_rank_, length_of_program_, disable_swaps=False ):
+    def __init__( self, mpi_comm_,mpi_rank_, length_of_program_, disable_swaps=False, decision_func=PtFunctions.decide_pt_switch ):
         """
         """
-        self.disable_swaps = disable_swaps
-
         # store the self.mpi_comm_world and the process rank
         self.mpi_comm_world = mpi_comm_
         self.mpi_process_rank = mpi_rank_
 
         # initialise all vars
         self.reset(length_of_program_)
+
+        # function to decide pt-swaps
+        self.decision_func = decision_func
+
+        # make decision func a trivial no if disable_swaps
+        if disable_swaps:
+            def always_no(*args,**kwargs):
+                return 0
+            self.decision_func = always_no
 
     def _init_pt_subsets( self,length_of_program_ ):
         """
@@ -375,10 +382,7 @@ class PtMPI:
             _F_12 = energy_*alt_temp_
 
             # decide whether to make pt switch
-            if self.disable_swaps:
-                _pt_switch_decision = 0
-            else:
-                _pt_switch_decision = int( PtFunctions.decide_pt_switch( _F_11, _F_22, _F_12, _F_21 ) )
+            _pt_switch_decision = int( self.decision_func( _F_11, _F_22, _F_12, _F_21, ranks=[self.mpi_process_rank,self.mpi_process_up_pointer] ) )
 
             # send decision to paired process
             sending_data = np.array([ _pt_switch_decision, self.mpi_process_up_pointer, self.mpi_process_down_pointer ])

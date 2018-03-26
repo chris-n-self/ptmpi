@@ -8,7 +8,8 @@ import numpy as np
 # F1 and F2
 # if running in parallel need to pass this function the log-partition functions
 # rather than the sector obj
-def decide_pt_switch( F_11, F_22, F_12, F_21 ):
+def decide_pt_switch(*args,**kwargs):
+    F_11, F_22, F_12, F_21 = args
     prob_switch = min( 1, np.exp( (F_12 + F_21 - F_11 - F_22) ) )
     return ( np.random.random()<prob_switch )
 
