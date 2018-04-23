@@ -6,12 +6,12 @@ import sys
 import json
 from mpi4py import MPI
 import numpy as np
-import PtFunctions
+import ptfuncs
 
 class NoMoreSwaps(Exception):
     pass
 
-class PtMPI:
+class swaphandler(object):
     """
     PARALLEL TEMPERING - MESSAGE PASSING INTERFACE class
 
@@ -19,7 +19,7 @@ class PtMPI:
     ==========
     mpi_comm_ : MPI communication environment
     mpi_rank_ : process rank
-    length_of_program_ : number of swap rounds that will be run
+    number_swaps : number of swap rounds that will be run
 
     Outline of program:
     ===================
@@ -55,7 +55,7 @@ class PtMPI:
 
     Stored properties:
     ==================
-    self.decision_func : function to call to decide swap acceptance, default value PtFunctions.decide_pt_switch
+    self.decision_func : function to call to decide swap acceptance, default value ptfuncs.decide_pt_switch
     -----
     self.mpi_comm_world : MPI communication environment
     self.mpi_process_rank : process rank
@@ -72,7 +72,7 @@ class PtMPI:
     self.mpi_sync_pointer_direction : information about whether this pointer points up or down
 
     """
-    def __init__( self, mpi_comm_,mpi_rank_, length_of_program_, disable_swaps=False, decision_func=PtFunctions.decide_pt_switch ):
+    def __init__( self, mpi_comm_,mpi_rank_, number_swaps=10000, disable_swaps=False, decision_func=ptfuncs.decide_pt_switch ):
         """
         """
         # store the self.mpi_comm_world and the process rank
@@ -80,7 +80,7 @@ class PtMPI:
         self.mpi_process_rank = mpi_rank_
 
         # initialise all vars
-        self.reset(length_of_program_)
+        self.reset(number_swaps)
 
         # function to decide pt-swaps
         self.decision_func = decision_func
@@ -91,25 +91,25 @@ class PtMPI:
                 return 0
             self.decision_func = always_no
 
-    def _init_pt_subsets( self,length_of_program_ ):
+    def _init_pt_subsets( self,number_swaps ):
         """
         BROADCAST PT-SUBSETS LIST
         process 0 pre-generates the list of which random subset the pt exchanges occur
         within during each round, these are then broadcasted to all the other processes.
         """
         if ( self.mpi_process_rank == 0 ):
-            self.pt_subsets = np.random.randint(2,size=length_of_program_)
+            self.pt_subsets = np.random.randint(2,size=number_swaps)
             # turn into bool array
             #self.pt_subsets = np.logical_and(self.pt_subsets,self.pt_subsets) 
         else:
-            self.pt_subsets = np.empty(length_of_program_,dtype=int)
-            #self.pt_subsets = np.empty(length_of_program_,dtype=np.bool)
+            self.pt_subsets = np.empty(number_swaps,dtype=int)
+            #self.pt_subsets = np.empty(number_swaps,dtype=np.bool)
         self.mpi_comm_world.Bcast([self.pt_subsets,MPI.INT], root=0)
         #self.mpi_comm_world.Bcast([self.pt_subsets,MPI.BOOL], root=0)
         # convert pt_subsets to regular array
         self.pt_subsets = self.pt_subsets.tolist()
 
-    def reset( self,length_of_program_ ):
+    def reset( self,number_swaps ):
         """
         set all variables to initial state
         """
@@ -117,7 +117,7 @@ class PtMPI:
         self.beta_index = self.mpi_process_rank
 
         # initialise pt-subsets shared resource
-        self._init_pt_subsets(length_of_program_)
+        self._init_pt_subsets(number_swaps)
 
         """
         INITIALISE POINTERS TO NEIGHBOURING PROCESSES
