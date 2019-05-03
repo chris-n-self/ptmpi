@@ -48,7 +48,7 @@ if __name__ == '__main__':
     length_of_program = ...
 
     # initialise ptmpi object
-    pt_mpi_obj = PtMPI.PtMPI( comm,rank,length_of_program )
+    pt_mpi_obj = PtMPI.swaphandler( comm,rank,number_swaps=length_of_program )
 
     for time_step in range(length_of_program):
 

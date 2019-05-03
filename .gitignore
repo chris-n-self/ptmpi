@@ -1,8 +1,12 @@
-# ignore the jupyter checkpoints in the testing folder
-testing/.ipynb_checkpoints
+# ignore contents of ipynb_checkpoints folders
+.ipynb_checkpoints/
 
-# ignore gif folder in testing
-testing/gifs
+# ignore the testing folder
+testing
+
+# ignore log files and output in the examples folder
+examples/output/*
+examples/*.txt
 
 # ignore compiled python code
 *.pyc

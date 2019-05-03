@@ -6,8 +6,6 @@ import sys
 import json
 from mpi4py import MPI
 from contextlib import contextmanager
-# use jsci, CT's enhanced json coding, for numpy objs
-from jsci import Coding as jscicoding
 
 class filehandler(object):
 
@@ -66,6 +64,6 @@ class filehandler(object):
 		json_string = ''
 		if self.array_between_elements:
 			json_string = ',\n'
-		json_string = json_string + json.dumps(obj,cls=jscicoding.NumericEncoder,indent=2)
+		json_string = json_string + json.dumps(obj,indent=2)
 		self.files[fileindex].Write_shared(json_string)
-		self.array_between_elements = (self.in_array and True) # equiv to just self.in_array, but meaning is clearer
+		self.array_between_elements = self.in_array
