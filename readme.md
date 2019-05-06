@@ -1,5 +1,5 @@
 # ptmpi
-A python class that coordinates an MPI implementation of parallel tempering
+A python class that coordinates an MPI implementation of parallel tempering that limits communication costs by exchanging temperatures rather than the state of the modelled system
 
 <!---
 ## Installation

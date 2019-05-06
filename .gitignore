@@ -1,8 +1,9 @@
 # ignore contents of ipynb_checkpoints folders
-.ipynb_checkpoints/
+*.ipynb_checkpoints/
 
 # ignore the testing folder
 testing
+docs
 
 # ignore log files and output in the examples folder
 examples/output/*
