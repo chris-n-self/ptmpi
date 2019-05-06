@@ -113,6 +113,9 @@ class swaphandler(object):
         self.reset(number_swaps)
 
     def _log_vars( self ):
+        """
+        dump the value of all internal variables to the log file for debugging.
+        """
         with open('log-file_rank'+str(self.mpi_process_rank)+'.txt', 'a', buffering=0) as log_file:
             # print all vars
             log_file.write('-'*10+'\n')
@@ -215,11 +218,16 @@ class swaphandler(object):
                     return
 
     def get_current_temp_index( self ):
-        """ """
+        """ 
+        return the current temperature index of this rank
+        """
         return self.beta_index
 
     def get_alternative_temp_index( self ):
-        """ """
+        """ 
+        return the possible alternative temperature index of this rank, that it could
+        swap to in a pt swap step
+        """
         try:
             _next_pt_subset = self.pt_subsets[-1]
         except IndexError:
@@ -233,7 +241,9 @@ class swaphandler(object):
             return 0
 
     def pt_step( self, energy_, curr_temp_, alt_temp_ ):
-        """ """
+        """
+        carry out parallel tempering swap round
+        """
         #if self.verbose:
             #self._log_vars()
 
@@ -245,6 +255,7 @@ class swaphandler(object):
 
     def pt_sync( self ):
         """
+        sync information between paired processes if necessary (see main docstring at top of file)
         """
         # outer try-finally loop ensures log_file is closed, but means it only it opens if
         # self.verbose is True
@@ -415,6 +426,7 @@ class swaphandler(object):
 
     def pt_swap( self, energy_, curr_temp_, alt_temp_ ):
         """
+        decide whether two processes should exchange temperature
         """
         # outer try-finally loop ensures log_file is closed, but means it only it opens if
         # self.verbose is True

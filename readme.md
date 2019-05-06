@@ -1,78 +1,18 @@
 # ptmpi
-A python class that coordinates an MPI implementation of parallel tempering that limits communication costs by exchanging temperatures rather than the state of the modelled system
-
-<!---
-## Installation
-
-Links: 
-MPICH: http://mpitutorial.com/tutorials/installing-mpich2/
-mpi4py: http://pythonhosted.org/mpi4py/
--->
+A python class that carries out an MPI implementation of parallel tempering. Communication costs is kept minimal by exchanging temperatures rather than the state of the modelled system
 
 ## Usage
 
 [Parallel tempering](https://en.wikipedia.org/wiki/Parallel_tempering) is a monte-carlo method used to obtain equilibrium statistics for a physical system over a range of temperatures. When the energy landscape of the system is complex it can hugely speed up the convergence of ensemble averages, especially at low temperatures. It works by simulating *N* copies of the system (replicas) evolving independently at different temperatures [*T1*, *T2*, *T3*, ... ]. Periodically replicas at different temperatures are exchanged with some probability.
 
-This python class (`ptmpi.PtMPI`) supports a fully parallelised implementation of parallel tempering using mpi4py (message passing interface for python). Each replica runs as a separate parallel process and they communicate via an mpi4py object. To minimise message passing the replicas stay in place and only the temperatures are exchanged between the processes. It is this exchange of temperatures that ptmpi handles.
+The main class (`ptmpi.swaphandler`) supports a fully parallelised implementation of parallel tempering using mpi4py (message passing interface for python). Each replica runs as a separate parallel process and they communicate via an mpi4py object. To minimise message passing the replicas stay in place and only the temperatures are exchanged between the processes at swaps. It is this exchange of temperatures that ptmpi handles. Another class (`ptmpi.filehandler`) provides a context manager that makes it easy for the processes to share a set of output files. This is useful since we will typically want the MCMC timeseries generated to be at fixed temperature.
 
-The class is independent of the system being simulated or any the details of the simulation, including what the temperatures [*T1*, *T2*, *T3*, ... ] are. It behaves as a black box to tell the process what its position temperature in the list of temperatures is. 
+The class is independent of the system being simulated or any details of the simulation. During regular MCMC update steps each replica queries ptmpi to obtain its current temperature index. At parallel tempering swap steps the replicas pass the information needed to decide whether a swap will occur to ptmpi.
 
-### Example code 
+### example code
 
-Python script that uses ptmpi (main.py):
+A fully worked example, using the [two-dimensional Ising model](https://en.wikipedia.org/wiki/Ising_model), is given in the examples folder. It can be run using the shell script `run_2d-ising_example.sh` and the main python script is `2d-ising.py`. An annotated version of `2d-ising.py` is also provided, highlighting the important parts of the code.
 
-```python
-# import mpi4py package
-from mpi4py import MPI
+## Setup
 
-# import ptmpi packages
-import ptmpi
-from ptmpi import PtMPI
-
-import (other packages)...
-
-if __name__ == '__main__':
-	
-	# initialise the MPI evironment
-    comm = MPI.COMM_WORLD
-    rank = comm.Get_rank()
-
-    # ...
-    # specify model parameters, initialise this replica
-    # ...
-
-    # define some set of temperatures
-    temps = [ ... ]
-
-    # decide the total number of pt-swaps that will be run
-    length_of_program = ...
-
-    # initialise ptmpi object
-    pt_mpi_obj = PtMPI.swaphandler( comm,rank,number_swaps=length_of_program )
-
-    for time_step in range(length_of_program):
-
-    	# get the current temperature from the ptmpi object
-    	curr_temp = temps[ pt_mpi_obj.get_current_temp_index() ]
-
-    	# ...
-    	# evolve the replica e.g. under metropolis, output/store data, etc.
-    	# ...
-
-    	# gather the data needed to decide the parallel tempering swap
-    	curr_energy = ...
-    	alt_temp = temps[ pt_mpi_obj.get_alternative_temp_index() ]
-
-    	# parallel tempering swap step
-    	mpi_pi_handler.pt_step( curr_energy, curr_temp, alt_temp )
-
-   	# ...
-   	# finalise simulation
-   	# ...
-```
-
-This is then run in terminal with the command:
-
-```bash
-$ mpiexec -n 16 python main.py
-```
+This package requires the python package `mpi4py` and an MPI library such as `MPICH`. These can both be installed through anaconda. If you are using pip instead then `MPICH` must be installed separately.

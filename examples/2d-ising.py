@@ -116,7 +116,8 @@ if __name__ == '__main__':
 
                 # output current state
                 beta_index = mpi_pt_handler.get_current_temp_index()
-                output_data = {"beta":betas[beta_index],"energy":E,"magnetisation":np.sum(ising_spins)}
+                output_data = {"rank":rank,"beta":betas[beta_index],\
+                               "energy":E,"magnetisation":np.sum(ising_spins)}
                 out_file.dump(beta_index,output_data)
 
                 # parallel tempering swap step
