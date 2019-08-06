@@ -8,15 +8,33 @@ from mpi4py import MPI
 import numpy as np
 
 class NoMoreSwaps(Exception):
+    """
+    swaphandler is instanced with a fixed number of available swap rounds, if this number
+    is exceeded swaphandler raises this exception.
+    """
     pass
 
-def default_pt_decision_function(F_11, F_22, F_12, F_21):
+class BadDecisionFunction(Exception):
+    """
+    a custom pt swap decision function can be passed to swaphandler, when swaphandler tries
+    to use this function in method ptswap() it will raise this exception if it fails
+    """
+    pass
+
+def default_pt_decision_function(args_1,args_2):
     """
     return decision to accept or reject swap
-    accept swap with probability min(1,e^{-F_12 - F_21}/e^{-F_11 - F_22})
-    normally F_ij = E_i beta_j
+    accept swap with probability min(1,e^{-E_1 beta_2 - E_2 beta_1}/e^{-E_1 beta_1 - E_2 beta_2})
     """
-    prob_switch = min( 1, np.exp( (-F_12 - F_21 + F_11 + F_22) ) )
+    # unpack args
+    E_1,beta_1,beta_2 = args_1
+    E_2,beta_2_,beta_1_ = args_2
+    # use the redundant temperature information as a consistency check
+    assert beta_1==beta_1_
+    assert beta_2==beta_2_
+    # compute swap probability
+    prob_switch = min( 1, np.exp( (-E_1*beta_2 - E_2*beta_1 + E_1*beta_1 + E_2*beta_2) ) )
+    # return decision
     return ( np.random.random()<prob_switch )
 
 class swaphandler(object):
@@ -63,19 +81,19 @@ class swaphandler(object):
 
     Stored properties:
     ==================
-    self.decision_func : function to call to decide swap acceptance, default value ptfuncs.decide_pt_switch
+    self.decision_func : function to call to decide swap acceptance
     -----
     self.mpi_comm_world : MPI communication environment
     self.mpi_process_rank : process rank
-    self.beta_index : index in the temperature set of this process's current temp
+    self.beta_index : index in the temperature set of this process's current temperature
     -----
     (SWAP STEP VARIABLES)
-    self.pt_subsets : list of binary values indicating how processes are paired for swaps
+    self.pt_subsets : list of 'swap paritys' indicating how processes are paired for swaps at each round
     self.mpi_process_up_pointer : process rank of the system at the temperature above
     self.mpi_process_down_pointer : process rank of the system with the temperature below
-    self.prev_pt_subset : 
     -----
     (SYNC STEP VARIABLES)
+    self.prev_pt_subset : used to detect the need for a sync step
     self.mpi_sync_step_pointer : pointer to the process this will communicate with in the next sync step
     self.mpi_sync_pointer_direction : information about whether this pointer points up or down
 
@@ -90,12 +108,7 @@ class swaphandler(object):
         # set the pt decision function
         self.decision_func = default_pt_decision_function
         if not decision_func is None:
-            # test function takes four arguments and returns a boolean
-            try:
-                assert type(decision_func(0,0,0,0)) is bool
-            except:
-                print('rank '+str(mpi_rank_)+': problem with decision_func passed to ptmpi constructor.')
-                raise
+            self.decision_func = decision_func
 
         # make decision func a trivial no if disable_swaps
         if disable_swaps:
@@ -114,7 +127,7 @@ class swaphandler(object):
 
     def _log_vars( self ):
         """
-        dump the value of all internal variables to the log file for debugging.
+        dump the value of all internal variables to the log file, for debugging
         """
         with open('log-file_rank'+str(self.mpi_process_rank)+'.txt', 'a', buffering=0) as log_file:
             # print all vars
@@ -240,7 +253,7 @@ class swaphandler(object):
         else:
             return 0
 
-    def pt_step( self, energy_, curr_temp_, alt_temp_ ):
+    def pt_step( self,*swap_decision_args_ ):
         """
         carry out parallel tempering swap round
         """
@@ -251,7 +264,7 @@ class swaphandler(object):
         self.pt_sync()
 
         # carry out swaps and return success flag
-        return self.pt_swap( energy_, curr_temp_, alt_temp_ )
+        return self.pt_swap(swap_decision_args_)
 
     def pt_sync( self ):
         """
@@ -318,19 +331,19 @@ class swaphandler(object):
                     # if this process ended up on the top of the pair we need to sync within the pair
                     if _process_has_swapped_during_last_subset:
             
-                        # wait for a message from the process partner telling this process what
+                        # wait for a message from the process paired process telling this process what
                         # its up-pointer should be pointing to
                         if self.verbose:
-                            log_file.write('at temp '+str(self.beta_index)+' waiting for info from partner '+str(self.mpi_process_down_pointer)+'\n')
+                            log_file.write('at temp '+str(self.beta_index)+' waiting for info from paired process '+str(self.mpi_process_down_pointer)+'\n')
                         incoming_data = np.empty(1, dtype=int)
                         self.mpi_comm_world.Recv( [incoming_data,MPI.INT], source=self.mpi_process_down_pointer, tag=18 )
                         if incoming_data[0]!=-1:
                             self.mpi_process_up_pointer = incoming_data[0]
             
-                        # send a message to the processes partner in the pair containing what its
+                        # send a message to the processes paired process in the pair containing what its
                         # down-pointer should be pointing to
                         if self.verbose:
-                            log_file.write('at temp '+str(self.beta_index)+' sending info to partner '+str(self.mpi_process_down_pointer)+'\n')
+                            log_file.write('at temp '+str(self.beta_index)+' sending info to paired process '+str(self.mpi_process_down_pointer)+'\n')
                         outgoing_data = np.array([_new_top_process_subset_below])
                         self.mpi_comm_world.Send( [outgoing_data,MPI.INT], dest=self.mpi_process_down_pointer, tag=20 )
             
@@ -378,17 +391,17 @@ class swaphandler(object):
                     # if this process ended up on the bottom of the pair we need to sync within the pair
                     if _process_has_swapped_during_last_subset:
             
-                        # send a message to the processes partner in the pair containing what its
+                        # send a message to the processes paired process in the pair containing what its
                         # up-pointer should be pointing to
                         if self.verbose:
-                            log_file.write('at temp '+str(self.beta_index)+' sending info to partner '+str(self.mpi_process_down_pointer)+'\n')
+                            log_file.write('at temp '+str(self.beta_index)+' sending info to paired process '+str(self.mpi_process_down_pointer)+'\n')
                         outgoing_data = np.array([_new_bottom_process_subset_above])
                         self.mpi_comm_world.Send( [outgoing_data,MPI.INT], dest=self.mpi_process_up_pointer, tag=18 )
             
-                        # wait for a message from the process partner telling this process what
+                        # wait for a message from the process paired process telling this process what
                         # its down-pointer should be pointing to
                         if self.verbose:
-                            log_file.write('at temp '+str(self.beta_index)+' waiting for info from partner '+str(self.mpi_process_down_pointer)+'\n')
+                            log_file.write('at temp '+str(self.beta_index)+' waiting for info from paired process '+str(self.mpi_process_down_pointer)+'\n')
                         incoming_data = np.empty(1, dtype=int)
                         self.mpi_comm_world.Recv( [incoming_data,MPI.INT], source=self.mpi_process_up_pointer, tag=20 )
                         if not ( incoming_data[0] == -1 ):
@@ -424,7 +437,7 @@ class swaphandler(object):
             if self.verbose:
                 log_file.close()
 
-    def pt_swap( self, energy_, curr_temp_, alt_temp_ ):
+    def pt_swap( self,swap_decision_args_ ):
         """
         decide whether two processes should exchange temperature
         """
@@ -441,9 +454,10 @@ class swaphandler(object):
             self.prev_pt_subset = _curr_pt_subset
 
             if (self.beta_index%2==_curr_pt_subset) and (not (self.mpi_process_up_pointer == -1)):
-                            
-                # controller chain at T recieves data from T+1 and makes a decision
-                incoming_data = np.empty(4, dtype=float)
+                # controller chain at T recieves data from T+1 and makes a decision.
+
+                # use the length of swap_decision_args_ to determine length of incoming info
+                incoming_data = np.empty(2+len(swap_decision_args_), dtype=float)
                 if self.verbose:
                     log_file.write('at temp '+str(self.beta_index)+' waiting for info from '+str(self.mpi_process_up_pointer)+' at temp '+str(self.beta_index+1)+'\n')
                 try:
@@ -456,17 +470,15 @@ class swaphandler(object):
                     log_file.write('at temp '+str(self.beta_index)+' recieved info from '+str(self.mpi_process_up_pointer)+'\n')
 
                 # unpack incoming data
-                _F_22 = incoming_data[0]
-                _F_21 = incoming_data[1]
-                _TplusOne_up_pointer = int(incoming_data[2])
-                _TplusOne_down_pointer = int(incoming_data[3])
-
-                # get this processes log-partition functions for pt comparisons
-                _F_11 = energy_*curr_temp_
-                _F_12 = energy_*alt_temp_
+                _TplusOne_up_pointer = int(incoming_data[0])
+                _TplusOne_down_pointer = int(incoming_data[1])
+                _other_swap_decision_args = tuple(incoming_data[2:])
 
                 # decide whether to make pt switch
-                _pt_switch_decision = int( self.decision_func( _F_11, _F_22, _F_12, _F_21 ) )
+                try:
+                    _pt_switch_decision = self.decision_func( swap_decision_args_,_other_swap_decision_args )
+                except:
+                    raise BadDecisionFunction('Could not use the decision function.')
 
                 # send decision to paired process
                 sending_data = np.array([ _pt_switch_decision, self.mpi_process_up_pointer, self.mpi_process_down_pointer ])
@@ -475,10 +487,10 @@ class swaphandler(object):
                 self.mpi_comm_world.Send( [sending_data,MPI.INT], dest=self.mpi_process_up_pointer, tag=12 )
 
                 # if swap was accepted handle change
-                if ( _pt_switch_decision == 1 ):
+                if _pt_switch_decision:
                     if self.verbose:
                         log_file.write('SWAP!'+'\n')
-                        log_file.write('changing temp from self.beta_index='+str(self.beta_index)+' to self.beta_index='+str(self.beta_index+1)+'\n')
+                        log_file.write('changing temp from '+str(self.beta_index)+' to '+str(self.beta_index+1)+'\n')
                     
                     # increase temperature index from T->T+1
                     self.beta_index += 1
@@ -496,14 +508,10 @@ class swaphandler(object):
 
             elif (not ( self.beta_index%2 == _curr_pt_subset )) and (not ( self.mpi_process_down_pointer == -1 )):
                 # non-controller chain at T+1 sends data to T and waits for decision
-
-                #if self.verbose:
-                    #log_file.write('at temp '+str(self.beta_index)+' swapping'+'\n')
                 
-                # pack data for sending to T-1, this is [F_22, F_21, self.mpi_process_up_pointer, self.mpi_process_down_pointer]
-                _F_22 = energy_*curr_temp_
-                _F_21 = energy_*alt_temp_
-                sending_data = np.array([ _F_22, _F_21, np.float64(self.mpi_process_up_pointer), np.float64(self.mpi_process_down_pointer) ])
+                # pack data for sending to T-1, this is [self.mpi_process_up_pointer, self.mpi_process_down_pointer, swap_decision_args]
+                # swap_decision_args will be in the form of a tuple so convert it to an array
+                sending_data = np.array([np.float64(self.mpi_process_up_pointer),np.float64(self.mpi_process_down_pointer)]+list(swap_decision_args_))
                 if self.verbose:
                     log_file.write('at temp '+str(self.beta_index)+' sending info to '+str(self.mpi_process_down_pointer)+' at temp '+str(self.beta_index-1)+'\n')
                 try:
@@ -527,7 +535,7 @@ class swaphandler(object):
                 _TminusOne_down_pointer = decision_data[2]
                     
                 # if swap was accepted handle change
-                if ( _pt_switch_decision==1 ):
+                if _pt_switch_decision:
                     if self.verbose:
                         log_file.write('SWAP!'+'\n')
                         log_file.write('changing temp from self.beta_index='+str(self.beta_index)+' to self.beta_index='+str(self.beta_index-1)+'\n')

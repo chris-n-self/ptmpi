@@ -9,14 +9,12 @@ from contextlib import contextmanager
 
 class filehandler(object):
 	"""
-	This class provides a context manager to wrap shared MPI output files. This allows each rank to output
-	to a file corresponding to its current temperature index, which changes through pt swaps.
+	This class provides a context manager to wrap an array of shared MPI output files. This allows each rank 
+	to output to a file corresponding to its current temperature index, which changes through pt swaps.
 
 	The intended use is to generate an array (a timeseries) of dictionary objects containing the important
 	information about the state of the system. Therefore, in addition to the main context manager another
 	context manager `wrap_array` is provided. 
-
-	The `dump` method 
 	"""
 
 	def __init__(self,mpi_comm_env,filename='ptmpi',label='T',amode=MPI.MODE_WRONLY|MPI.MODE_CREATE):

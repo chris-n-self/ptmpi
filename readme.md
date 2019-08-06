@@ -1,6 +1,16 @@
 # ptmpi
 A python class that carries out an MPI implementation of parallel tempering. Communication costs is kept minimal by exchanging temperatures rather than the state of the modelled system
 
+## Setup
+
+Clone the repository onto your machine. The package requires the python package `mpi4py` and an MPI library such as `MPICH`. These can both be installed through anaconda. If you are using pip instead, then `MPICH` must be installed separately.
+
+The package is called `ptmpi` and is in the `packages` folder. To make the package accessible from anywhere add the package to your python path environment variable. This can be done to putting the following in your `~/.bash_profile` file: `export PYTHONPATH="$PYTHONPATH:/path/to/repository/packages"`
+
+### Compatibility
+
+Currently the package only works in python 2.7, it does not work for me in python 3.
+
 ## Usage
 
 [Parallel tempering](https://en.wikipedia.org/wiki/Parallel_tempering) is a monte-carlo method used to obtain equilibrium statistics for a physical system over a range of temperatures. When the energy landscape of the system is complex it can hugely speed up the convergence of ensemble averages, especially at low temperatures. It works by simulating *N* copies of the system (replicas) evolving independently at different temperatures [*T1*, *T2*, *T3*, ... ]. Periodically replicas at different temperatures are exchanged with some probability.
@@ -11,8 +21,4 @@ The class is independent of the system being simulated or any details of the sim
 
 ### example code
 
-A fully worked example, using the [two-dimensional Ising model](https://en.wikipedia.org/wiki/Ising_model), is given in the examples folder. It can be run using the shell script `run_2d-ising_example.sh` and the main python script is `2d-ising.py`. An annotated version of `2d-ising.py` is also provided, highlighting the important parts of the code.
-
-## Setup
-
-This package requires the python package `mpi4py` and an MPI library such as `MPICH`. These can both be installed through anaconda. If you are using pip instead then `MPICH` must be installed separately.
+A fully worked example, using the [two-dimensional Ising model](https://en.wikipedia.org/wiki/Ising_model), is given in the examples folder. It can be run using the shell script `run_2d-ising_example.sh` and the main python script is `2d-ising.py`. An annotated version of `2d-ising.py` is also provided, highlighting the important parts of the code. The subfolder `notebooks` has some Jupyter notebooks that give an example of opening the output data files and carrying out a simple analysis of the Monte Carlo timeseries.
